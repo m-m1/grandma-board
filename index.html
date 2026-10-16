@@ -25,7 +25,6 @@
       overflow-x: auto;
     }
 
-    /* מסך נעילת סיסמה */
     #authOverlay {
       position: fixed;
       inset: 0;
@@ -50,7 +49,6 @@
     .auth-card p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
     .auth-error { color: #f87171; font-size: 13px; margin-top: 10px; display: none; }
 
-    /* כותרות וסרגל פעולות */
     h1 { margin: 0 0 6px 0; font-size: 22px; }
     p.subtitle { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; }
     
@@ -86,7 +84,6 @@
       color: #cbd5e1;
     }
 
-    /* לוח עמודות */
     .board {
       display: flex;
       gap: 16px;
@@ -124,7 +121,6 @@
       min-height: 90px;
     }
     
-    /* כרטיסיית פריט */
     .card {
       background: var(--card-bg);
       border-radius: 8px;
@@ -180,7 +176,6 @@
       border-radius: 6px;
     }
 
-    /* מודל הוספה / עריכה */
     .modal-bg {
       display: none;
       position: fixed;
@@ -222,7 +217,7 @@
     </div>
   </div>
 
-  <!-- תוכן ראשי -->
+  <!-- לוח ראשי -->
   <h1>📦 מפנים לפני פינוי בינוי</h1>
   <p class="subtitle">גררו פריט לעמודה שלכם (או העבירו מהתפריט בנייד). לשינוי פרטים לחצו על "ערוך".</p>
 
@@ -240,14 +235,14 @@
       <h3 id="modalHeading" style="margin:0;">הוספת פריט</h3>
       <input type="hidden" id="editItemId">
       
-      <label style="font-size:12px; color:#94a3b8;">חדר / מיקום:</label>
+      <label style="font-size:12px; color:#94a3b8;">חדר או מיקום:</label>
       <select id="itemRoom"></select>
 
       <label style="font-size:12px; color:#94a3b8;">שם הפריט:</label>
       <input type="text" id="itemTitle" placeholder="למשל: שידת עץ">
 
       <label style="font-size:12px; color:#94a3b8;">מידות והערות:</label>
-      <input type="text" id="itemDims" placeholder="למשל: 120/40 ס&quot;מ, במצב מצוין">
+      <input type="text" id="itemDims" placeholder="למשל: 120/40 ס&quot;מ, מצב מעולה">
 
       <label style="font-size:12px; color:#94a3b8;">תמונה (אופציונלי):</label>
       <input type="file" id="itemImg" accept="image/*">
@@ -264,17 +259,16 @@
 
   <script>
     // ==========================================
-    // 🔑 1. סיסמה משפחתית
+    // 1. סיסמה משפחתית
     // ==========================================
     const FAMILY_PASSWORD = "galila";
 
     // ==========================================
-    // 🌐 2. קישור ה-Google Apps Script שלך
-    // הדביקי כאן את ה-Web App URL מחלק 1:
+    // 2. קישור ה-Apps Script שהעתקת משלב 2
+    // הדביקי את הקישור במקום הטקסט כאן:
     // ==========================================
-    const GOOGLE_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
+   const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMSd14pmZRyBA0fwTF9f8Dkd6sg-YWudIVrMn8Az-33Y1Pm_cWKrONzZpzSQ0vkBm0/exec";
 
-    // אימות סיסמה
     function checkAuth() {
       if (localStorage.getItem('grandma_auth') === 'valid') {
         document.getElementById('authOverlay').style.display = 'none';
@@ -294,7 +288,6 @@
     });
     checkAuth();
 
-    // חדרים ובני משפחה
     const defaultRooms = ["סלון", "מטבח", "חדר שינה", "חדר עבודה", "חדר כביסה", "חדר שקיות", "מרפסת", "שירותים ומקלחת", "שונות"];
     const memberColumns = [
       "הדברים של רוני ונעמי",
@@ -309,10 +302,9 @@
     let items = [];
     let currentImgBase64 = "";
 
-    // טעינת נתונים מגוגל שיטס
     function loadFromSheet() {
       if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("YOUR_GOOGLE")) {
-        document.getElementById('syncStatus').textContent = "⚠️ נא להגדיר את כתובת ה-Apps Script בקוד";
+        document.getElementById('syncStatus').textContent = "⚠️ נא להדביק את כתובת ה-Apps Script בקוד";
         return;
       }
       document.getElementById('syncStatus').textContent = "🔄 טוען נתונים...";
@@ -329,7 +321,6 @@
         });
     }
 
-    // שליחת פעולה לגוגל שיטס
     function sendActionToSheet(payload) {
       if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("YOUR_GOOGLE")) return;
       document.getElementById('syncStatus').textContent = "💾 שומר בגיליון...";
@@ -349,7 +340,6 @@
       });
     }
 
-    // כיווץ תמונות אוטומטי
     document.getElementById('itemImg').addEventListener('change', function() {
       if (this.files && this.files[0]) {
         const file = this.files[0];
@@ -501,7 +491,6 @@
       const dims = document.getElementById('itemDims').value.trim();
 
       if (editId) {
-        // עריכת פריט קיים
         const item = items.find(i => i.id === editId);
         if (item) {
           item.title = title;
@@ -512,7 +501,6 @@
           sendActionToSheet({ action: 'update', item: item });
         }
       } else {
-        // הוספת פריט חדש
         const newItem = {
           id: Date.now().toString(),
           col: targetCol,
@@ -540,9 +528,7 @@
       }
     }
 
-    // טעינה ראשונית בהפעלה
     loadFromSheet();
-    // סנכרון אוטומטי כל 20 שניות
     setInterval(loadFromSheet, 20000);
   </script>
 </body>
