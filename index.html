@@ -13,6 +13,7 @@
       --accent-room: #38bdf8;
       --accent-member: #34d399;
       --primary: #2563eb;
+      --danger: #ef4444;
     }
     * { box-sizing: border-box; }
     body {
@@ -58,6 +59,7 @@
       gap: 10px;
       margin-bottom: 20px;
       flex-wrap: wrap;
+      align-items: center;
     }
     button, input, select {
       padding: 9px 14px;
@@ -76,12 +78,20 @@
     }
     button:hover { background: #1d4ed8; }
 
+    .status-badge {
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #334155;
+      color: #cbd5e1;
+    }
+
     /* לוח עמודות */
     .board {
       display: flex;
       gap: 16px;
       align-items: flex-start;
-      min-height: calc(100vh - 120px);
+      min-height: calc(100vh - 140px);
       padding-bottom: 20px;
     }
     .column {
@@ -123,7 +133,6 @@
       overflow: hidden;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       border: 1px solid #475569;
-      transition: transform 0.1s, box-shadow 0.1s;
     }
     .card:active { cursor: grabbing; }
     .card img {
@@ -136,11 +145,26 @@
     .card-body {
       padding: 10px;
     }
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
     .card-title {
       font-weight: 700;
       font-size: 15px;
-      margin-bottom: 4px;
     }
+    .btn-edit {
+      background: transparent;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      padding: 2px 6px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+    .btn-edit:hover { background: #475569; color: #fff; }
+
     .card-dims {
       font-size: 12px;
       color: #cbd5e1;
@@ -149,14 +173,14 @@
     .move-select {
       width: 100%;
       font-size: 12px;
-      padding: 4px 6px;
+      padding: 5px 6px;
       background: #1e293b;
       border: 1px solid #475569;
       color: #94a3b8;
       border-radius: 6px;
     }
 
-    /* חלון הוספת פריט (Modal) */
+    /* מודל הוספה / עריכה */
     .modal-bg {
       display: none;
       position: fixed;
@@ -177,6 +201,12 @@
       gap: 12px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     }
+    .modal-buttons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -192,39 +222,57 @@
     </div>
   </div>
 
-  <!-- תוכן הלוח הראשי -->
+  <!-- תוכן ראשי -->
   <h1>📦 מפנים לפני פינוי בינוי</h1>
-  <p class="subtitle">גררו פריט לעמודה שלכם (או בחרו מתוך התפריט בכרטיסייה). מתחרטים? גררו חזרה לחדר.</p>
+  <p class="subtitle">גררו פריט לעמודה שלכם (או העבירו מהתפריט בנייד). לשינוי פרטים לחצו על "ערוך".</p>
 
   <div class="toolbar">
-    <button onclick="openModal()">➕ הוסף פריט לחדר</button>
-    <input type="text" id="newMemberName" placeholder="שם בן משפחה חדש...">
-    <button style="background: #059669;" onclick="addMemberColumn()">+ הוסף עמודה אישית</button>
+    <button onclick="openAddModal()">➕ הוסף פריט לחדר</button>
+    <button style="background: #334155;" onclick="loadFromSheet()">🔄 רענן נתונים</button>
+    <span id="syncStatus" class="status-badge">🔄 מתחבר ל-Google Sheets...</span>
   </div>
 
   <div class="board" id="board"></div>
 
-  <!-- מודל הוספת פריט -->
+  <!-- מודל הוספה ועריכה -->
   <div class="modal-bg" id="modal">
     <div class="modal">
-      <h3 style="margin:0;">הוספת פריט לדירה</h3>
+      <h3 id="modalHeading" style="margin:0;">הוספת פריט</h3>
+      <input type="hidden" id="editItemId">
+      
+      <label style="font-size:12px; color:#94a3b8;">חדר / מיקום:</label>
       <select id="itemRoom"></select>
-      <input type="text" id="itemTitle" placeholder="שם הפריט (למשל: שידת עץ)">
-      <input type="text" id="itemDims" placeholder="מידות / הערות (למשל: 120/40 ס&quot;מ)">
-      <label style="font-size:12px; color:#94a3b8;">תמונה מהטלפון או המחשב:</label>
+
+      <label style="font-size:12px; color:#94a3b8;">שם הפריט:</label>
+      <input type="text" id="itemTitle" placeholder="למשל: שידת עץ">
+
+      <label style="font-size:12px; color:#94a3b8;">מידות והערות:</label>
+      <input type="text" id="itemDims" placeholder="למשל: 120/40 ס&quot;מ, במצב מצוין">
+
+      <label style="font-size:12px; color:#94a3b8;">תמונה (אופציונלי):</label>
       <input type="file" id="itemImg" accept="image/*">
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
-        <button style="background:#64748b;" onclick="closeModal()">ביטול</button>
-        <button onclick="saveItem()">שמור פריט</button>
+
+      <div class="modal-buttons">
+        <button id="btnDelete" style="background: var(--danger); display: none;" onclick="deleteCurrentItem()">🗑️ מחק</button>
+        <div style="display: flex; gap: 8px; margin-right: auto;">
+          <button style="background:#64748b;" onclick="closeModal()">ביטול</button>
+          <button onclick="saveItemHandler()">שמור</button>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
     // ==========================================
-    // 🔑 סיסמה משפחתית
+    // 🔑 1. סיסמה משפחתית
     // ==========================================
     const FAMILY_PASSWORD = "galila";
+
+    // ==========================================
+    // 🌐 2. קישור ה-Google Apps Script שלך
+    // הדביקי כאן את ה-Web App URL מחלק 1:
+    // ==========================================
+    const GOOGLE_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL_HERE";
 
     // אימות סיסמה
     function checkAuth() {
@@ -246,20 +294,62 @@
     });
     checkAuth();
 
-    // נתונים ראשוניים
+    // חדרים ובני משפחה
     const defaultRooms = ["סלון", "מטבח", "חדר שינה", "חדר עבודה", "חדר כביסה", "חדר שקיות", "מרפסת", "שירותים ומקלחת", "שונות"];
-    let memberColumns = JSON.parse(localStorage.getItem('board_members') || '["הדברים של מאי", "הדברים של אמיר", "הדברים של שיר", "הדברים של ליאורי"]');
+    const memberColumns = [
+      "הדברים של רוני ונעמי",
+      "הדברים של מיכל",
+      "הדברים של רז ובר",
+      "הדברים של גל",
+      "הדברים של שיר",
+      "הדברים של ליאור",
+      "הדברים של מאי"
+    ];
 
-    let items = JSON.parse(localStorage.getItem('board_items') || JSON.stringify([
-      { id: "1", col: "סלון", title: "ספה תלת-מושבית", dims: "רוחב 200 ס\"מ", img: "" },
-      { id: "2", col: "סלון", title: "מזנון עץ", dims: "160/45 ס\"מ", img: "" },
-      { id: "3", col: "מטבח", title: "שולחן אוכל + 4 כיסאות", dims: "נפתח ל-8", img: "" },
-      { id: "4", col: "חדר שינה", title: "שידות לילה (זוג)", dims: "עץ מלא", img: "" }
-    ]));
-
+    let items = [];
     let currentImgBase64 = "";
 
-    // כיווץ תמונות אוטומטי למניעת עומס
+    // טעינת נתונים מגוגל שיטס
+    function loadFromSheet() {
+      if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("YOUR_GOOGLE")) {
+        document.getElementById('syncStatus').textContent = "⚠️ נא להגדיר את כתובת ה-Apps Script בקוד";
+        return;
+      }
+      document.getElementById('syncStatus').textContent = "🔄 טוען נתונים...";
+      fetch(GOOGLE_SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          items = data.items || [];
+          document.getElementById('syncStatus').textContent = "🟢 מסונכרן מול Google Sheets";
+          renderBoard();
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('syncStatus').textContent = "🔴 שגיאה בטעינה מהגיליון";
+        });
+    }
+
+    // שליחת פעולה לגוגל שיטס
+    function sendActionToSheet(payload) {
+      if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("YOUR_GOOGLE")) return;
+      document.getElementById('syncStatus').textContent = "💾 שומר בגיליון...";
+      
+      fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(() => {
+        document.getElementById('syncStatus').textContent = "🟢 מסונכרן מול Google Sheets";
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('syncStatus').textContent = "🔴 שגיאה בשמירה";
+      });
+    }
+
+    // כיווץ תמונות אוטומטי
     document.getElementById('itemImg').addEventListener('change', function() {
       if (this.files && this.files[0]) {
         const file = this.files[0];
@@ -270,7 +360,7 @@
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const maxDim = 600;
+            const maxDim = 450;
             if (width > height && width > maxDim) {
               height = Math.round((height * maxDim) / width);
               width = maxDim;
@@ -282,7 +372,7 @@
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            currentImgBase64 = canvas.toDataURL('image/jpeg', 0.6);
           };
           img.src = e.target.result;
         };
@@ -299,13 +389,9 @@
       board.innerHTML = '';
       const allCols = getAllColumns();
 
-      // עמודות חדרים
       defaultRooms.forEach(room => createColElement(room, false));
-
-      // עמודות משפחה
       memberColumns.forEach(mem => createColElement(mem, true));
 
-      // רינדור כרטיסיות
       items.forEach(item => {
         const colContainer = document.getElementById(`cards-${item.col}`);
         if (colContainer) {
@@ -322,7 +408,10 @@
           card.innerHTML = `
             ${item.img ? `<img src="${item.img}" alt="${item.title}">` : ''}
             <div class="card-body">
-              <div class="card-title">${item.title}</div>
+              <div class="card-header-row">
+                <div class="card-title">${item.title}</div>
+                <button class="btn-edit" onclick="openEditModal('${item.id}')">✏️ ערוך</button>
+              </div>
               ${item.dims ? `<div class="card-dims">📏 ${item.dims}</div>` : ''}
               <select class="move-select" onchange="moveItem('${item.id}', this.value)">
                 <option value="" disabled>העבר אל...</option>
@@ -360,55 +449,101 @@
       const item = items.find(i => i.id === itemId);
       if (item && item.col !== targetCol) {
         item.col = targetCol;
-        localStorage.setItem('board_items', JSON.stringify(items));
         renderBoard();
+        sendActionToSheet({ action: 'move', id: itemId, toCol: targetCol });
       }
     }
 
-    function openModal() {
+    function openAddModal() {
+      document.getElementById('modalHeading').textContent = "הוספת פריט חדש";
+      document.getElementById('editItemId').value = "";
+      document.getElementById('itemTitle').value = "";
+      document.getElementById('itemDims').value = "";
+      document.getElementById('itemImg').value = "";
+      document.getElementById('btnDelete').style.display = "none";
+      currentImgBase64 = "";
+
       const select = document.getElementById('itemRoom');
-      select.innerHTML = defaultRooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      select.innerHTML = getAllColumns().map(r => `<option value="${r}">${r}</option>`).join('');
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function openEditModal(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById('modalHeading').textContent = "עריכת פריט";
+      document.getElementById('editItemId').value = item.id;
+      document.getElementById('itemTitle').value = item.title;
+      document.getElementById('itemDims').value = item.dims;
+      document.getElementById('itemImg').value = "";
+      document.getElementById('btnDelete').style.display = "block";
+      currentImgBase64 = item.img || "";
+
+      const select = document.getElementById('itemRoom');
+      select.innerHTML = getAllColumns().map(r => 
+        `<option value="${r}" ${r === item.col ? 'selected' : ''}>${r}</option>`
+      ).join('');
+
       document.getElementById('modal').style.display = 'flex';
     }
 
     function closeModal() {
       document.getElementById('modal').style.display = 'none';
-      document.getElementById('itemTitle').value = '';
-      document.getElementById('itemDims').value = '';
-      document.getElementById('itemImg').value = '';
-      currentImgBase64 = "";
     }
 
-    function saveItem() {
+    function saveItemHandler() {
       const title = document.getElementById('itemTitle').value.trim();
       if (!title) return alert('נא להזין שם לפריט');
 
-      items.push({
-        id: Date.now().toString(),
-        col: document.getElementById('itemRoom').value,
-        title: title,
-        dims: document.getElementById('itemDims').value.trim(),
-        img: currentImgBase64
-      });
+      const editId = document.getElementById('editItemId').value;
+      const targetCol = document.getElementById('itemRoom').value;
+      const dims = document.getElementById('itemDims').value.trim();
 
-      localStorage.setItem('board_items', JSON.stringify(items));
-      renderBoard();
+      if (editId) {
+        // עריכת פריט קיים
+        const item = items.find(i => i.id === editId);
+        if (item) {
+          item.title = title;
+          item.dims = dims;
+          item.col = targetCol;
+          if (currentImgBase64) item.img = currentImgBase64;
+          renderBoard();
+          sendActionToSheet({ action: 'update', item: item });
+        }
+      } else {
+        // הוספת פריט חדש
+        const newItem = {
+          id: Date.now().toString(),
+          col: targetCol,
+          title: title,
+          dims: dims,
+          img: currentImgBase64
+        };
+        items.push(newItem);
+        renderBoard();
+        sendActionToSheet({ action: 'add', item: newItem });
+      }
+
       closeModal();
     }
 
-    function addMemberColumn() {
-      const val = document.getElementById('newMemberName').value.trim();
-      if (!val) return;
-      const colName = `הדברים של ${val}`;
-      if (!memberColumns.includes(colName)) {
-        memberColumns.push(colName);
-        localStorage.setItem('board_members', JSON.stringify(memberColumns));
+    function deleteCurrentItem() {
+      const editId = document.getElementById('editItemId').value;
+      if (!editId) return;
+
+      if (confirm("האם למחוק פריט זה לצמיתות?")) {
+        items = items.filter(i => i.id !== editId);
         renderBoard();
+        sendActionToSheet({ action: 'delete', id: editId });
+        closeModal();
       }
-      document.getElementById('newMemberName').value = '';
     }
 
-    renderBoard();
+    // טעינה ראשונית בהפעלה
+    loadFromSheet();
+    // סנכרון אוטומטי כל 20 שניות
+    setInterval(loadFromSheet, 20000);
   </script>
 </body>
 </html>
