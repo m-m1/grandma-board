@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>לוח פינוי הדירה של סבתא</title>
+  <title>מפנים לפני פינוי בינוי</title>
   <style>
     :root {
       --bg: #0f172a;
       --col-bg: #1e293b;
       --card-bg: #334155;
       --text: #f8fafc;
-      --accent: #38bdf8;
+      --accent-room: #38bdf8;
       --accent-member: #34d399;
+      --primary: #2563eb;
     }
     * { box-sizing: border-box; }
     body {
@@ -22,8 +23,35 @@
       padding: 16px;
       overflow-x: auto;
     }
+
+    /* מסך נעילת סיסמה */
+    #authOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .auth-card {
+      background: #1e293b;
+      border: 1px solid #475569;
+      padding: 30px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .auth-card h2 { margin-top: 0; font-size: 20px; }
+    .auth-card p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+    .auth-error { color: #f87171; font-size: 13px; margin-top: 10px; display: none; }
+
+    /* כותרות וסרגל פעולות */
     h1 { margin: 0 0 6px 0; font-size: 22px; }
-    p { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; }
+    p.subtitle { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; }
     
     .toolbar {
       display: flex;
@@ -32,7 +60,7 @@
       flex-wrap: wrap;
     }
     button, input, select {
-      padding: 8px 14px;
+      padding: 9px 14px;
       border-radius: 8px;
       border: 1px solid #475569;
       font-size: 14px;
@@ -40,14 +68,15 @@
       color: #fff;
     }
     button {
-      background: #2563eb;
+      background: var(--primary);
       border: none;
       cursor: pointer;
       font-weight: 600;
+      transition: background 0.15s;
     }
     button:hover { background: #1d4ed8; }
 
-    /* אזור העמודות */
+    /* לוח עמודות */
     .board {
       display: flex;
       gap: 16px;
@@ -63,16 +92,16 @@
       display: flex;
       flex-direction: column;
       max-height: 85vh;
-      border-top: 4px solid var(--accent);
+      border-top: 4px solid var(--accent-room);
     }
     .column.member-col {
       border-top-color: var(--accent-member);
-      background: #192a3e;
+      background: #162436;
     }
     .col-header {
       padding: 12px;
       font-weight: 700;
-      font-size: 16px;
+      font-size: 15px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -82,25 +111,27 @@
       padding: 10px;
       overflow-y: auto;
       flex-grow: 1;
-      min-height: 80px;
+      min-height: 90px;
     }
     
     /* כרטיסיית פריט */
     .card {
       background: var(--card-bg);
       border-radius: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       cursor: grab;
       overflow: hidden;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       border: 1px solid #475569;
+      transition: transform 0.1s, box-shadow 0.1s;
     }
     .card:active { cursor: grabbing; }
     .card img {
       width: 100%;
-      height: 120px;
+      height: 130px;
       object-fit: cover;
       display: block;
+      background: #1e293b;
     }
     .card-body {
       padding: 10px;
@@ -113,9 +144,19 @@
     .card-dims {
       font-size: 12px;
       color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+    .move-select {
+      width: 100%;
+      font-size: 12px;
+      padding: 4px 6px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      border-radius: 6px;
     }
 
-    /* חלון הוספת פריט */
+    /* חלון הוספת פריט (Modal) */
     .modal-bg {
       display: none;
       position: fixed;
@@ -123,23 +164,37 @@
       background: rgba(0,0,0,0.6);
       align-items: center;
       justify-content: center;
-      z-index: 100;
+      z-index: 500;
     }
     .modal {
       background: #1e293b;
       padding: 24px;
       border-radius: 14px;
-      width: 380px;
+      width: 90%;
+      max-width: 400px;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     }
   </style>
 </head>
 <body>
 
-  <h1>📦 חלוקת ופינוי חפצים – הדירה של סבתא</h1>
-  <p>גררו כרטיסיות מחלל הדירה ישר לעמודה שלכם. מתחרטים? פשוט גררו את הפריט חזרה לחדר.</p>
+  <!-- מסך נעילה -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <h2>🔒 כניסה למשפחה</h2>
+      <p>מפנים לפני פינוי בינוי</p>
+      <input type="password" id="passInput" placeholder="הזינו סיסמה..." style="width: 100%; margin-bottom: 12px;">
+      <button onclick="checkPassword()" style="width: 100%;">כניסה</button>
+      <div id="authError" class="auth-error">הסיסמה שגויה, נסו שוב</div>
+    </div>
+  </div>
+
+  <!-- תוכן הלוח הראשי -->
+  <h1>📦 מפנים לפני פינוי בינוי</h1>
+  <p class="subtitle">גררו פריט לעמודה שלכם (או בחרו מתוך התפריט בכרטיסייה). מתחרטים? גררו חזרה לחדר.</p>
 
   <div class="toolbar">
     <button onclick="openModal()">➕ הוסף פריט לחדר</button>
@@ -149,13 +204,14 @@
 
   <div class="board" id="board"></div>
 
-  <!-- חלון הוספת פריט -->
+  <!-- מודל הוספת פריט -->
   <div class="modal-bg" id="modal">
     <div class="modal">
-      <h3 style="margin:0;">הוספת פריט חדש</h3>
+      <h3 style="margin:0;">הוספת פריט לדירה</h3>
       <select id="itemRoom"></select>
       <input type="text" id="itemTitle" placeholder="שם הפריט (למשל: שידת עץ)">
       <input type="text" id="itemDims" placeholder="מידות / הערות (למשל: 120/40 ס&quot;מ)">
+      <label style="font-size:12px; color:#94a3b8;">תמונה מהטלפון או המחשב:</label>
       <input type="file" id="itemImg" accept="image/*">
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
         <button style="background:#64748b;" onclick="closeModal()">ביטול</button>
@@ -165,7 +221,33 @@
   </div>
 
   <script>
-    const defaultRooms = ["סלון", "מטבח", "חדר שינה", "חדר עבודה", "כביסה", "מרפסת", "שונות"];
+    // ==========================================
+    // 🔑 סיסמה משפחתית
+    // ==========================================
+    const FAMILY_PASSWORD = "galila";
+
+    // אימות סיסמה
+    function checkAuth() {
+      if (localStorage.getItem('grandma_auth') === 'valid') {
+        document.getElementById('authOverlay').style.display = 'none';
+      }
+    }
+    function checkPassword() {
+      const val = document.getElementById('passInput').value.trim();
+      if (val === FAMILY_PASSWORD) {
+        localStorage.setItem('grandma_auth', 'valid');
+        document.getElementById('authOverlay').style.display = 'none';
+      } else {
+        document.getElementById('authError').style.display = 'block';
+      }
+    }
+    document.getElementById('passInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') checkPassword();
+    });
+    checkAuth();
+
+    // נתונים ראשוניים
+    const defaultRooms = ["סלון", "מטבח", "חדר שינה", "חדר עבודה", "חדר כביסה", "חדר שקיות", "מרפסת", "שירותים ומקלחת", "שונות"];
     let memberColumns = JSON.parse(localStorage.getItem('board_members') || '["הדברים של מאי", "הדברים של אמיר", "הדברים של שיר", "הדברים של ליאורי"]');
 
     let items = JSON.parse(localStorage.getItem('board_items') || JSON.stringify([
@@ -177,17 +259,45 @@
 
     let currentImgBase64 = "";
 
+    // כיווץ תמונות אוטומטי למניעת עומס
     document.getElementById('itemImg').addEventListener('change', function() {
       if (this.files && this.files[0]) {
+        const file = this.files[0];
         const reader = new FileReader();
-        reader.onload = e => currentImgBase64 = e.target.result;
-        reader.readAsDataURL(this.files[0]);
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 600;
+            if (width > height && width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            currentImgBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
       }
     });
+
+    function getAllColumns() {
+      return [...defaultRooms, ...memberColumns];
+    }
 
     function renderBoard() {
       const board = document.getElementById('board');
       board.innerHTML = '';
+      const allCols = getAllColumns();
 
       // עמודות חדרים
       defaultRooms.forEach(room => createColElement(room, false));
@@ -195,7 +305,7 @@
       // עמודות משפחה
       memberColumns.forEach(mem => createColElement(mem, true));
 
-      // הוספת כרטיסיות
+      // רינדור כרטיסיות
       items.forEach(item => {
         const colContainer = document.getElementById(`cards-${item.col}`);
         if (colContainer) {
@@ -205,11 +315,19 @@
           card.id = `item-${item.id}`;
           card.ondragstart = (e) => e.dataTransfer.setData('text/plain', item.id);
 
+          const selectOptions = allCols.map(c => 
+            `<option value="${c}" ${c === item.col ? 'selected' : ''}>${c}</option>`
+          ).join('');
+
           card.innerHTML = `
-            ${item.img ? `<img src="${item.img}">` : ''}
+            ${item.img ? `<img src="${item.img}" alt="${item.title}">` : ''}
             <div class="card-body">
               <div class="card-title">${item.title}</div>
               ${item.dims ? `<div class="card-dims">📏 ${item.dims}</div>` : ''}
+              <select class="move-select" onchange="moveItem('${item.id}', this.value)">
+                <option value="" disabled>העבר אל...</option>
+                ${selectOptions}
+              </select>
             </div>
           `;
           colContainer.appendChild(card);
@@ -232,15 +350,19 @@
       container.ondrop = (e) => {
         e.preventDefault();
         const itemId = e.dataTransfer.getData('text/plain');
-        const item = items.find(i => i.id === itemId);
-        if (item) {
-          item.col = name;
-          localStorage.setItem('board_items', JSON.stringify(items));
-          renderBoard();
-        }
+        moveItem(itemId, name);
       };
 
       document.getElementById('board').appendChild(col);
+    }
+
+    function moveItem(itemId, targetCol) {
+      const item = items.find(i => i.id === itemId);
+      if (item && item.col !== targetCol) {
+        item.col = targetCol;
+        localStorage.setItem('board_items', JSON.stringify(items));
+        renderBoard();
+      }
     }
 
     function openModal() {
