@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>לוח פינוי הדירה של סבתא</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --col-bg: #1e293b;
+      --card-bg: #334155;
+      --text: #f8fafc;
+      --accent: #38bdf8;
+      --accent-member: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    h1 { margin: 0 0 6px 0; font-size: 22px; }
+    p { margin: 0 0 16px 0; color: #94a3b8; font-size: 14px; }
+    
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    button, input, select {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      font-size: 14px;
+      background: #1e293b;
+      color: #fff;
+    }
+    button {
+      background: #2563eb;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #1d4ed8; }
+
+    /* אזור העמודות */
+    .board {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      min-height: calc(100vh - 120px);
+      padding-bottom: 20px;
+    }
+    .column {
+      background: var(--col-bg);
+      border-radius: 12px;
+      width: 270px;
+      min-width: 270px;
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+      border-top: 4px solid var(--accent);
+    }
+    .column.member-col {
+      border-top-color: var(--accent-member);
+      background: #192a3e;
+    }
+    .col-header {
+      padding: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+    .cards-container {
+      padding: 10px;
+      overflow-y: auto;
+      flex-grow: 1;
+      min-height: 80px;
+    }
+    
+    /* כרטיסיית פריט */
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: grab;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      border: 1px solid #475569;
+    }
+    .card:active { cursor: grabbing; }
+    .card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+    }
+    .card-body {
+      padding: 10px;
+    }
+    .card-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+    .card-dims {
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+
+    /* חלון הוספת פריט */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 14px;
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📦 חלוקת ופינוי חפצים – הדירה של סבתא</h1>
+  <p>גררו כרטיסיות מחלל הדירה ישר לעמודה שלכם. מתחרטים? פשוט גררו את הפריט חזרה לחדר.</p>
+
+  <div class="toolbar">
+    <button onclick="openModal()">➕ הוסף פריט לחדר</button>
+    <input type="text" id="newMemberName" placeholder="שם בן משפחה חדש...">
+    <button style="background: #059669;" onclick="addMemberColumn()">+ הוסף עמודה אישית</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <!-- חלון הוספת פריט -->
+  <div class="modal-bg" id="modal">
+    <div class="modal">
+      <h3 style="margin:0;">הוספת פריט חדש</h3>
+      <select id="itemRoom"></select>
+      <input type="text" id="itemTitle" placeholder="שם הפריט (למשל: שידת עץ)">
+      <input type="text" id="itemDims" placeholder="מידות / הערות (למשל: 120/40 ס&quot;מ)">
+      <input type="file" id="itemImg" accept="image/*">
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+        <button style="background:#64748b;" onclick="closeModal()">ביטול</button>
+        <button onclick="saveItem()">שמור פריט</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const defaultRooms = ["סלון", "מטבח", "חדר שינה", "חדר עבודה", "כביסה", "מרפסת", "שונות"];
+    let memberColumns = JSON.parse(localStorage.getItem('board_members') || '["הדברים של מאי", "הדברים של אמיר", "הדברים של שיר", "הדברים של ליאורי"]');
+
+    let items = JSON.parse(localStorage.getItem('board_items') || JSON.stringify([
+      { id: "1", col: "סלון", title: "ספה תלת-מושבית", dims: "רוחב 200 ס\"מ", img: "" },
+      { id: "2", col: "סלון", title: "מזנון עץ", dims: "160/45 ס\"מ", img: "" },
+      { id: "3", col: "מטבח", title: "שולחן אוכל + 4 כיסאות", dims: "נפתח ל-8", img: "" },
+      { id: "4", col: "חדר שינה", title: "שידות לילה (זוג)", dims: "עץ מלא", img: "" }
+    ]));
+
+    let currentImgBase64 = "";
+
+    document.getElementById('itemImg').addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => currentImgBase64 = e.target.result;
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+
+    function renderBoard() {
+      const board = document.getElementById('board');
+      board.innerHTML = '';
+
+      // עמודות חדרים
+      defaultRooms.forEach(room => createColElement(room, false));
+
+      // עמודות משפחה
+      memberColumns.forEach(mem => createColElement(mem, true));
+
+      // הוספת כרטיסיות
+      items.forEach(item => {
+        const colContainer = document.getElementById(`cards-${item.col}`);
+        if (colContainer) {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.draggable = true;
+          card.id = `item-${item.id}`;
+          card.ondragstart = (e) => e.dataTransfer.setData('text/plain', item.id);
+
+          card.innerHTML = `
+            ${item.img ? `<img src="${item.img}">` : ''}
+            <div class="card-body">
+              <div class="card-title">${item.title}</div>
+              ${item.dims ? `<div class="card-dims">📏 ${item.dims}</div>` : ''}
+            </div>
+          `;
+          colContainer.appendChild(card);
+        }
+      });
+    }
+
+    function createColElement(name, isMember) {
+      const col = document.createElement('div');
+      col.className = `column ${isMember ? 'member-col' : ''}`;
+      col.innerHTML = `
+        <div class="col-header">
+          <span>${isMember ? '👤 ' : '🏠 '}${name}</span>
+        </div>
+        <div class="cards-container" id="cards-${name}"></div>
+      `;
+
+      const container = col.querySelector('.cards-container');
+      container.ondragover = (e) => e.preventDefault();
+      container.ondrop = (e) => {
+        e.preventDefault();
+        const itemId = e.dataTransfer.getData('text/plain');
+        const item = items.find(i => i.id === itemId);
+        if (item) {
+          item.col = name;
+          localStorage.setItem('board_items', JSON.stringify(items));
+          renderBoard();
+        }
+      };
+
+      document.getElementById('board').appendChild(col);
+    }
+
+    function openModal() {
+      const select = document.getElementById('itemRoom');
+      select.innerHTML = defaultRooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('itemTitle').value = '';
+      document.getElementById('itemDims').value = '';
+      document.getElementById('itemImg').value = '';
+      currentImgBase64 = "";
+    }
+
+    function saveItem() {
+      const title = document.getElementById('itemTitle').value.trim();
+      if (!title) return alert('נא להזין שם לפריט');
+
+      items.push({
+        id: Date.now().toString(),
+        col: document.getElementById('itemRoom').value,
+        title: title,
+        dims: document.getElementById('itemDims').value.trim(),
+        img: currentImgBase64
+      });
+
+      localStorage.setItem('board_items', JSON.stringify(items));
+      renderBoard();
+      closeModal();
+    }
+
+    function addMemberColumn() {
+      const val = document.getElementById('newMemberName').value.trim();
+      if (!val) return;
+      const colName = `הדברים של ${val}`;
+      if (!memberColumns.includes(colName)) {
+        memberColumns.push(colName);
+        localStorage.setItem('board_members', JSON.stringify(memberColumns));
+        renderBoard();
+      }
+      document.getElementById('newMemberName').value = '';
+    }
+
+    renderBoard();
+  </script>
+</body>
+</html>
